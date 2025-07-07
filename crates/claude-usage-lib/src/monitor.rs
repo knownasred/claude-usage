@@ -42,7 +42,8 @@ impl UsageMonitor {
 
     pub fn add_entry(&mut self, entry: UsageEntry) {
         self.usage_entries.push(entry);
-        self.usage_entries.sort_by(|a, b| a.timestamp().cmp(&b.timestamp()));
+        self.usage_entries
+            .sort_by(|a, b| a.timestamp().cmp(&b.timestamp()));
         self.recalculate_blocks();
     }
 
@@ -66,7 +67,11 @@ impl UsageMonitor {
             .and_then(|block| self.calculator.calculate_burn_rate(block))
     }
 
-    pub fn project_usage(&self, block_index: usize, current_time: DateTime<Utc>) -> Option<UsageProjection> {
+    pub fn project_usage(
+        &self,
+        block_index: usize,
+        current_time: DateTime<Utc>,
+    ) -> Option<UsageProjection> {
         self.session_blocks
             .get(block_index)
             .and_then(|block| self.calculator.project_block_usage(block, current_time))
@@ -81,7 +86,8 @@ impl UsageMonitor {
     }
 
     pub fn calculate_hourly_burn_rate(&self, current_time: DateTime<Utc>) -> f64 {
-        self.calculator.calculate_hourly_burn_rate(&self.session_blocks, current_time)
+        self.calculator
+            .calculate_hourly_burn_rate(&self.session_blocks, current_time)
     }
 
     pub fn calculate_tokens_per_second(&self, current_time: DateTime<Utc>) -> f64 {
@@ -97,44 +103,50 @@ impl UsageMonitor {
     }
 
     pub fn get_average_burn_rate(&self) -> Option<BurnRate> {
-        self.calculator.calculate_average_burn_rate(&self.session_blocks)
+        self.calculator
+            .calculate_average_burn_rate(&self.session_blocks)
     }
 
     pub fn get_peak_burn_rate(&self) -> Option<BurnRate> {
-        self.calculator.calculate_peak_burn_rate(&self.session_blocks)
+        self.calculator
+            .calculate_peak_burn_rate(&self.session_blocks)
     }
 
     pub fn get_active_sessions(&self, current_time: DateTime<Utc>) -> Vec<&SessionBlock> {
         self.session_blocks
             .iter()
             .filter(|block| {
-                !block.is_empty() && 
-                current_time >= block.start_time() && 
-                current_time < block.end_time()
+                !block.is_empty()
+                    && current_time >= block.start_time()
+                    && current_time < block.end_time()
             })
             .collect()
     }
 
-    pub fn get_sessions_in_range(&self, start: DateTime<Utc>, end: DateTime<Utc>) -> Vec<&SessionBlock> {
+    pub fn get_sessions_in_range(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Vec<&SessionBlock> {
         self.session_blocks
             .iter()
             .filter(|block| {
-                !block.is_empty() &&
-                block.start_time() < end &&
-                block.end_time() > start
+                !block.is_empty() && block.start_time() < end && block.end_time() > start
             })
             .collect()
     }
 
     pub fn get_model_breakdown(&self) -> std::collections::HashMap<String, (u64, f64)> {
         let mut breakdown = std::collections::HashMap::new();
-        
+
         for entry in &self.usage_entries {
-            let stats = breakdown.entry(entry.model().to_string()).or_insert((0, 0.0));
+            let stats = breakdown
+                .entry(entry.model().to_string())
+                .or_insert((0, 0.0));
             stats.0 += entry.total_tokens();
             stats.1 += entry.cost_usd();
         }
-        
+
         breakdown
     }
 
@@ -143,7 +155,10 @@ impl UsageMonitor {
         self.usage_entries
             .iter()
             .filter(|entry| entry.model() == model)
-            .map(|entry| self.calculator.calculate_weighted_tokens(entry, model_weight))
+            .map(|entry| {
+                self.calculator
+                    .calculate_weighted_tokens(entry, model_weight)
+            })
             .sum()
     }
 
@@ -152,7 +167,8 @@ impl UsageMonitor {
             .iter()
             .map(|entry| {
                 let model_weight = self.pricing_provider.get_model_weight(entry.model());
-                self.calculator.calculate_weighted_tokens(entry, model_weight)
+                self.calculator
+                    .calculate_weighted_tokens(entry, model_weight)
             })
             .sum()
     }
@@ -160,8 +176,9 @@ impl UsageMonitor {
     pub fn estimate_time_to_limit(&self, token_limit: u64) -> Option<chrono::Duration> {
         let current_tokens = self.get_total_tokens();
         let current_burn_rate = self.get_current_burn_rate()?.tokens_per_minute();
-        
-        self.calculator.calculate_time_to_limit(current_tokens, token_limit, current_burn_rate)
+
+        self.calculator
+            .calculate_time_to_limit(current_tokens, token_limit, current_burn_rate)
     }
 
     pub fn estimate_time_to_plan_limit(&self, plan: ClaudePlan) -> Option<chrono::Duration> {
@@ -177,8 +194,14 @@ impl UsageMonitor {
         self.pricing_provider.supported_models()
     }
 
-    pub fn calculate_cost_for_tokens(&self, model: &str, input_tokens: u64, output_tokens: u64) -> Option<f64> {
-        self.pricing_provider.calculate_cost(model, input_tokens, output_tokens, 0, 0)
+    pub fn calculate_cost_for_tokens(
+        &self,
+        model: &str,
+        input_tokens: u64,
+        output_tokens: u64,
+    ) -> Option<f64> {
+        self.pricing_provider
+            .calculate_cost(model, input_tokens, output_tokens, 0, 0)
     }
 
     pub fn clear_data(&mut self) {
@@ -248,10 +271,10 @@ mod tests {
     fn test_load_data_from_file() {
         let mut monitor = UsageMonitor::new();
         let mut temp_file = NamedTempFile::new().unwrap();
-        
+
         let content = r#"{"timestamp": "2024-01-01T12:00:00Z", "model": "claude-3-sonnet-20240229", "usage": {"input_tokens": 100, "output_tokens": 50, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0}, "cost_usd": 0.001}"#;
         temp_file.write_all(content.as_bytes()).unwrap();
-        
+
         monitor.load_data(temp_file.path()).unwrap();
         assert_eq!(monitor.entry_count(), 1);
         assert_eq!(monitor.session_count(), 1);
@@ -282,7 +305,7 @@ mod tests {
 
         monitor.add_entry(entry1);
         monitor.add_entry(entry2);
-        
+
         let burn_rate = monitor.get_current_burn_rate().unwrap();
         assert!(burn_rate.tokens_per_minute() > 0.0);
         assert!(burn_rate.cost_per_hour() > 0.0);
@@ -292,7 +315,7 @@ mod tests {
     fn test_get_model_breakdown() {
         let mut monitor = UsageMonitor::new();
         let timestamp = Utc.with_ymd_and_hms(2024, 1, 1, 12, 0, 0).unwrap();
-        
+
         let entry1 = UsageEntry::new(
             timestamp,
             "claude-3-sonnet-20240229".to_string(),
@@ -314,7 +337,7 @@ mod tests {
 
         monitor.add_entry(entry1);
         monitor.add_entry(entry2);
-        
+
         let breakdown = monitor.get_model_breakdown();
         assert_eq!(breakdown.len(), 2);
         assert!(breakdown.contains_key("claude-3-sonnet-20240229"));
@@ -337,7 +360,7 @@ mod tests {
 
         monitor.add_entry(entry);
         assert!(!monitor.is_empty());
-        
+
         monitor.clear_data();
         assert!(monitor.is_empty());
         assert_eq!(monitor.session_count(), 0);

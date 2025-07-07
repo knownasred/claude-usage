@@ -1,12 +1,18 @@
-{ inputs, ... }:
-{
+{inputs, ...}: {
   imports = [
     (inputs.git-hooks + /flake-module.nix)
   ];
-  perSystem = { config, self', pkgs, lib, ... }: {
+  perSystem = {
+    config,
+    self',
+    pkgs,
+    lib,
+    ...
+  }: {
+    formatter = pkgs.alejandra;
     pre-commit.settings = {
       hooks = {
-        nixpkgs-fmt.enable = true;
+        alejandra.enable = true;
         rustfmt.enable = true;
       };
     };

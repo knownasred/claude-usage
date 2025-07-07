@@ -1,6 +1,11 @@
-{ inputs, ... }:
-{
-  perSystem = { config, self', pkgs, lib, ... }: {
+{inputs, ...}: {
+  perSystem = {
+    config,
+    self',
+    pkgs,
+    lib,
+    ...
+  }: {
     devShells.default = pkgs.mkShell {
       name = "claude-usage-shell";
       inputsFrom = [
@@ -11,7 +16,6 @@
         just
         nixd # Nix language server
         bacon
-        config.process-compose.cargo-doc-live.outputs.package
       ];
     };
   };

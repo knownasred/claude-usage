@@ -21,13 +21,13 @@ impl DataLoader {
     pub fn load_from_file<P: AsRef<Path>>(&self, path: P) -> Result<Vec<UsageEntry>> {
         let file = File::open(&path)
             .with_context(|| format!("Failed to open file: {}", path.as_ref().display()))?;
-        
+
         let reader = BufReader::new(file);
         let mut entries = Vec::new();
 
         for (line_num, line) in reader.lines().enumerate() {
             let line = line.with_context(|| format!("Failed to read line {}", line_num + 1))?;
-            
+
             if line.trim().is_empty() {
                 continue;
             }
@@ -51,14 +51,18 @@ impl DataLoader {
         Ok(all_entries)
     }
 
-    fn load_from_directory_recursive(&self, dir_path: &Path, entries: &mut Vec<UsageEntry>) -> Result<()> {
+    fn load_from_directory_recursive(
+        &self,
+        dir_path: &Path,
+        entries: &mut Vec<UsageEntry>,
+    ) -> Result<()> {
         let dir = std::fs::read_dir(dir_path)
             .with_context(|| format!("Failed to read directory: {}", dir_path.display()))?;
 
         for entry in dir {
             let entry = entry.context("Failed to read directory entry")?;
             let path = entry.path();
-            
+
             if path.is_file() {
                 if let Some(extension) = path.extension() {
                     if extension == "jsonl" {
@@ -73,7 +77,11 @@ impl DataLoader {
             } else if path.is_dir() {
                 // Recursively search subdirectories (for project directories)
                 if let Err(e) = self.load_from_directory_recursive(&path, entries) {
-                    eprintln!("Warning: Failed to load from directory {}: {}", path.display(), e);
+                    eprintln!(
+                        "Warning: Failed to load from directory {}: {}",
+                        path.display(),
+                        e
+                    );
                 }
             }
         }
@@ -82,32 +90,38 @@ impl DataLoader {
     }
 
     fn parse_line(&self, line: &str) -> Result<UsageEntry> {
-        let json: Value = serde_json::from_str(line)
-            .context("Failed to parse JSON")?;
+        let json: Value = serde_json::from_str(line).context("Failed to parse JSON")?;
 
         // Check if this is an assistant message with usage data
         if let Some(message) = json.get("message") {
             if let Some(usage) = message.get("usage") {
                 let timestamp = self.parse_timestamp(&json)?;
-                let model = message.get("model")
+                let model = message
+                    .get("model")
                     .and_then(|v| v.as_str())
                     .unwrap_or("unknown")
                     .to_string();
 
                 let input_tokens = self.extract_u64(usage, "input_tokens")?;
                 let output_tokens = self.extract_u64(usage, "output_tokens")?;
-                let cache_creation_input_tokens = self.extract_u64(usage, "cache_creation_input_tokens").unwrap_or(0);
-                let cache_read_input_tokens = self.extract_u64(usage, "cache_read_input_tokens").unwrap_or(0);
+                let cache_creation_input_tokens = self
+                    .extract_u64(usage, "cache_creation_input_tokens")
+                    .unwrap_or(0);
+                let cache_read_input_tokens = self
+                    .extract_u64(usage, "cache_read_input_tokens")
+                    .unwrap_or(0);
 
                 // Calculate cost using our pricing (since cost_usd might not be present)
                 let cost_usd = self.extract_f64(&json, "cost_usd").unwrap_or_else(|_| {
-                    self.pricing_provider.calculate_cost(
-                        &model,
-                        input_tokens,
-                        output_tokens,
-                        cache_creation_input_tokens,
-                        cache_read_input_tokens,
-                    ).unwrap_or(0.0)
+                    self.pricing_provider
+                        .calculate_cost(
+                            &model,
+                            input_tokens,
+                            output_tokens,
+                            cache_creation_input_tokens,
+                            cache_read_input_tokens,
+                        )
+                        .unwrap_or(0.0)
                 });
 
                 return Ok(UsageEntry::new(
@@ -129,8 +143,12 @@ impl DataLoader {
 
             let input_tokens = self.extract_u64(usage, "input_tokens")?;
             let output_tokens = self.extract_u64(usage, "output_tokens")?;
-            let cache_creation_input_tokens = self.extract_u64(usage, "cache_creation_input_tokens").unwrap_or(0);
-            let cache_read_input_tokens = self.extract_u64(usage, "cache_read_input_tokens").unwrap_or(0);
+            let cache_creation_input_tokens = self
+                .extract_u64(usage, "cache_creation_input_tokens")
+                .unwrap_or(0);
+            let cache_read_input_tokens = self
+                .extract_u64(usage, "cache_read_input_tokens")
+                .unwrap_or(0);
 
             let cost_usd = self.extract_f64(&json, "cost_usd").unwrap_or(0.0);
 
@@ -150,7 +168,7 @@ impl DataLoader {
 
     fn parse_timestamp(&self, json: &Value) -> Result<DateTime<Utc>> {
         let timestamp_str = self.extract_string(json, "timestamp")?;
-        
+
         DateTime::parse_from_rfc3339(&timestamp_str)
             .context("Failed to parse timestamp")
             .map(|dt| dt.with_timezone(&Utc))
@@ -192,7 +210,7 @@ mod tests {
     fn test_parse_valid_line() {
         let loader = DataLoader::new();
         let line = r#"{"timestamp": "2024-01-01T12:00:00Z", "model": "claude-3-sonnet-20240229", "usage": {"input_tokens": 100, "output_tokens": 50, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0}, "cost_usd": 0.001}"#;
-        
+
         let entry = loader.parse_line(line).unwrap();
         assert_eq!(entry.model(), "claude-3-sonnet-20240229");
         assert_eq!(entry.input_tokens(), 100);
@@ -204,7 +222,7 @@ mod tests {
     fn test_parse_line_with_cache_tokens() {
         let loader = DataLoader::new();
         let line = r#"{"timestamp": "2024-01-01T12:00:00Z", "model": "claude-3-sonnet-20240229", "usage": {"input_tokens": 100, "output_tokens": 50, "cache_creation_input_tokens": 25, "cache_read_input_tokens": 10}, "cost_usd": 0.001}"#;
-        
+
         let entry = loader.parse_line(line).unwrap();
         assert_eq!(entry.cache_creation_input_tokens(), 25);
         assert_eq!(entry.cache_read_input_tokens(), 10);
@@ -214,12 +232,12 @@ mod tests {
     fn test_load_from_file() {
         let loader = DataLoader::new();
         let mut temp_file = NamedTempFile::new().unwrap();
-        
+
         let content = r#"{"timestamp": "2024-01-01T12:00:00Z", "model": "claude-3-sonnet-20240229", "usage": {"input_tokens": 100, "output_tokens": 50, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0}, "cost_usd": 0.001}
 {"timestamp": "2024-01-01T13:00:00Z", "model": "claude-3-sonnet-20240229", "usage": {"input_tokens": 200, "output_tokens": 100, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0}, "cost_usd": 0.002}"#;
-        
+
         temp_file.write_all(content.as_bytes()).unwrap();
-        
+
         let entries = loader.load_from_file(temp_file.path()).unwrap();
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0].input_tokens(), 100);
@@ -230,13 +248,13 @@ mod tests {
     fn test_load_from_file_with_empty_lines() {
         let loader = DataLoader::new();
         let mut temp_file = NamedTempFile::new().unwrap();
-        
+
         let content = r#"{"timestamp": "2024-01-01T12:00:00Z", "model": "claude-3-sonnet-20240229", "usage": {"input_tokens": 100, "output_tokens": 50, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0}, "cost_usd": 0.001}
 
 {"timestamp": "2024-01-01T13:00:00Z", "model": "claude-3-sonnet-20240229", "usage": {"input_tokens": 200, "output_tokens": 100, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0}, "cost_usd": 0.002}"#;
-        
+
         temp_file.write_all(content.as_bytes()).unwrap();
-        
+
         let entries = loader.load_from_file(temp_file.path()).unwrap();
         assert_eq!(entries.len(), 2);
     }
@@ -245,7 +263,7 @@ mod tests {
     fn test_invalid_json_line() {
         let loader = DataLoader::new();
         let line = r#"{"invalid": "json"#;
-        
+
         assert!(loader.parse_line(line).is_err());
     }
 
@@ -253,7 +271,7 @@ mod tests {
     fn test_missing_required_fields() {
         let loader = DataLoader::new();
         let line = r#"{"timestamp": "2024-01-01T12:00:00Z"}"#;
-        
+
         assert!(loader.parse_line(line).is_err());
     }
 }

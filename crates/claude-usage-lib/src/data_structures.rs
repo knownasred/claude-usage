@@ -28,7 +28,7 @@ impl ClaudePlan {
     pub fn description(&self) -> &'static str {
         match self {
             ClaudePlan::Pro => "Claude Pro (~44K tokens/day)",
-            ClaudePlan::Max5 => "Claude Max 5 (~220K tokens/day)", 
+            ClaudePlan::Max5 => "Claude Max 5 (~220K tokens/day)",
             ClaudePlan::Max20 => "Claude Max 20 (~880K tokens/day)",
         }
     }
@@ -99,7 +99,10 @@ impl UsageEntry {
     }
 
     pub fn all_tokens(&self) -> u64 {
-        self.input_tokens + self.output_tokens + self.cache_creation_input_tokens + self.cache_read_input_tokens
+        self.input_tokens
+            + self.output_tokens
+            + self.cache_creation_input_tokens
+            + self.cache_read_input_tokens
     }
 }
 
@@ -149,7 +152,10 @@ impl TokenCounts {
     }
 
     pub fn all_tokens(&self) -> u64 {
-        self.input_tokens + self.output_tokens + self.cache_creation_input_tokens + self.cache_read_input_tokens
+        self.input_tokens
+            + self.output_tokens
+            + self.cache_creation_input_tokens
+            + self.cache_read_input_tokens
     }
 }
 
@@ -187,7 +193,7 @@ impl SessionBlock {
             let actual_start = self.entries.first().unwrap().timestamp;
             let actual_end = self.entries.last().unwrap().timestamp;
             self.duration_minutes = (actual_end - actual_start).num_seconds() as f64 / 60.0;
-            
+
             if self.duration_minutes == 0.0 {
                 self.duration_minutes = 1.0;
             }
@@ -352,7 +358,7 @@ impl ModelPricing {
             + (output_tokens as f64 * self.output_cost_per_token)
             + (cache_creation_tokens as f64 * self.cache_creation_input_token_cost)
             + (cache_read_tokens as f64 * self.cache_read_input_token_cost);
-        
+
         (cost * 1_000_000.0).round() / 1_000_000.0
     }
 }

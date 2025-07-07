@@ -1,19 +1,18 @@
-{ inputs, ... }:
-{
+{inputs, ...}: {
   imports = [
     inputs.rust-flake.flakeModules.default
     inputs.rust-flake.flakeModules.nixpkgs
-    inputs.process-compose-flake.flakeModule
-    inputs.cargo-doc-live.flakeModule
   ];
-  perSystem = { config, self', pkgs, lib, ... }: {
-    rust-project.crates."claude-usage".crane.args = {
-      buildInputs = lib.optionals pkgs.stdenv.isDarwin (
-        with pkgs.darwin.apple_sdk.frameworks; [
-          IOKit
-        ]
-      );
+  perSystem = {
+    config,
+    self',
+    pkgs,
+    lib,
+    ...
+  }: {
+    rust-project = {
+      # See /crates/*/crate.nix for the crate-specific Nix configuration
+      crateNixFile = "crate.nix";
     };
-    packages.default = self'.packages.claude-usage;
   };
 }

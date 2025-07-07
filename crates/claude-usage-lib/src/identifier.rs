@@ -63,7 +63,7 @@ impl SessionIdentifier {
     fn create_block_for_entry(&self, entry: &UsageEntry) -> SessionBlock {
         let start_time = self.round_to_hour(entry.timestamp());
         let end_time = start_time + self.session_duration;
-        
+
         SessionBlock::new(start_time, end_time)
     }
 
@@ -112,11 +112,35 @@ mod tests {
     fn test_multiple_entries_same_block() {
         let identifier = SessionIdentifier::new();
         let base_time = Utc.with_ymd_and_hms(2024, 1, 1, 12, 0, 0).unwrap();
-        
+
         let entries = vec![
-            UsageEntry::new(base_time, "claude-3-sonnet-20240229".to_string(), 100, 50, 0, 0, 0.001),
-            UsageEntry::new(base_time + Duration::hours(1), "claude-3-sonnet-20240229".to_string(), 150, 75, 0, 0, 0.002),
-            UsageEntry::new(base_time + Duration::hours(2), "claude-3-sonnet-20240229".to_string(), 200, 100, 0, 0, 0.003),
+            UsageEntry::new(
+                base_time,
+                "claude-3-sonnet-20240229".to_string(),
+                100,
+                50,
+                0,
+                0,
+                0.001,
+            ),
+            UsageEntry::new(
+                base_time + Duration::hours(1),
+                "claude-3-sonnet-20240229".to_string(),
+                150,
+                75,
+                0,
+                0,
+                0.002,
+            ),
+            UsageEntry::new(
+                base_time + Duration::hours(2),
+                "claude-3-sonnet-20240229".to_string(),
+                200,
+                100,
+                0,
+                0,
+                0.003,
+            ),
         ];
 
         let blocks = identifier.identify_blocks(&entries);
@@ -128,10 +152,26 @@ mod tests {
     fn test_gap_creates_new_block() {
         let identifier = SessionIdentifier::new();
         let base_time = Utc.with_ymd_and_hms(2024, 1, 1, 12, 0, 0).unwrap();
-        
+
         let entries = vec![
-            UsageEntry::new(base_time, "claude-3-sonnet-20240229".to_string(), 100, 50, 0, 0, 0.001),
-            UsageEntry::new(base_time + Duration::hours(6), "claude-3-sonnet-20240229".to_string(), 150, 75, 0, 0, 0.002),
+            UsageEntry::new(
+                base_time,
+                "claude-3-sonnet-20240229".to_string(),
+                100,
+                50,
+                0,
+                0,
+                0.001,
+            ),
+            UsageEntry::new(
+                base_time + Duration::hours(6),
+                "claude-3-sonnet-20240229".to_string(),
+                150,
+                75,
+                0,
+                0,
+                0.002,
+            ),
         ];
 
         let blocks = identifier.identify_blocks(&entries);
@@ -144,10 +184,26 @@ mod tests {
     fn test_time_boundary_creates_new_block() {
         let identifier = SessionIdentifier::new();
         let base_time = Utc.with_ymd_and_hms(2024, 1, 1, 12, 0, 0).unwrap();
-        
+
         let entries = vec![
-            UsageEntry::new(base_time, "claude-3-sonnet-20240229".to_string(), 100, 50, 0, 0, 0.001),
-            UsageEntry::new(base_time + Duration::hours(5), "claude-3-sonnet-20240229".to_string(), 150, 75, 0, 0, 0.002),
+            UsageEntry::new(
+                base_time,
+                "claude-3-sonnet-20240229".to_string(),
+                100,
+                50,
+                0,
+                0,
+                0.001,
+            ),
+            UsageEntry::new(
+                base_time + Duration::hours(5),
+                "claude-3-sonnet-20240229".to_string(),
+                150,
+                75,
+                0,
+                0,
+                0.002,
+            ),
         ];
 
         let blocks = identifier.identify_blocks(&entries);
