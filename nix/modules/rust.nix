@@ -1,5 +1,10 @@
-{inputs, ...}: {
+{
+  inputs,
+  self,
+  ...
+}: {
   imports = [
+    inputs.rust-flake.flakeModules.default
     inputs.rust-flake.flakeModules.default
     inputs.rust-flake.flakeModules.nixpkgs
   ];
@@ -11,13 +16,13 @@
     ...
   }: {
     rust-project = {
-      # See /crates/*/crate.nix for the crate-specific Nix configuration
-      crateNixFile = "crate.nix";
+      crates = {
+        claude-usage.path = (inputs.self) + /crates/claude-usage;
+      };
     };
 
     packages = {
-      default = config.rust-project.crates."claude-usage";
-      claude-usage = config.rust-project.crates."claude-usage";
+      default = self'.packages.claude-usage;
     };
   };
 }
