@@ -227,6 +227,19 @@ impl SessionBlock {
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
+
+    pub fn calculate_weighted_tokens(
+        &self,
+        pricing_provider: &crate::pricing::PricingProvider,
+    ) -> f64 {
+        self.entries
+            .iter()
+            .map(|entry| {
+                let model_weight = pricing_provider.get_model_weight(entry.model());
+                entry.total_tokens() as f64 * model_weight
+            })
+            .sum()
+    }
 }
 
 #[derive(Debug, Clone)]

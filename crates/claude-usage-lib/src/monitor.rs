@@ -56,9 +56,10 @@ impl UsageMonitor {
     }
 
     pub fn get_current_burn_rate(&self) -> Option<BurnRate> {
-        self.session_blocks
-            .last()
-            .and_then(|block| self.calculator.calculate_burn_rate(block))
+        self.session_blocks.last().and_then(|block| {
+            self.calculator
+                .calculate_weighted_burn_rate(block, &self.pricing_provider)
+        })
     }
 
     pub fn get_burn_rate_for_block(&self, block_index: usize) -> Option<BurnRate> {
@@ -86,8 +87,11 @@ impl UsageMonitor {
     }
 
     pub fn calculate_hourly_burn_rate(&self, current_time: DateTime<Utc>) -> f64 {
-        self.calculator
-            .calculate_hourly_burn_rate(&self.session_blocks, current_time)
+        self.calculator.calculate_weighted_hourly_burn_rate(
+            &self.session_blocks,
+            current_time,
+            &self.pricing_provider,
+        )
     }
 
     pub fn calculate_tokens_per_second(&self, current_time: DateTime<Utc>) -> f64 {
@@ -174,7 +178,7 @@ impl UsageMonitor {
     }
 
     pub fn estimate_time_to_limit(&self, token_limit: u64) -> Option<chrono::Duration> {
-        let current_tokens = self.get_total_tokens();
+        let current_tokens = self.get_total_weighted_tokens() as u64;
         let current_burn_rate = self.get_current_burn_rate()?.tokens_per_minute();
 
         self.calculator
@@ -186,12 +190,16 @@ impl UsageMonitor {
     }
 
     pub fn get_plan_usage_percentage(&self, plan: ClaudePlan) -> f64 {
-        let current_tokens = self.get_total_tokens();
-        (current_tokens as f64 / plan.max_tokens() as f64) * 100.0
+        let current_tokens = self.get_total_weighted_tokens();
+        (current_tokens / plan.max_tokens() as f64) * 100.0
     }
 
     pub fn get_supported_models(&self) -> Vec<&String> {
         self.pricing_provider.supported_models()
+    }
+
+    pub fn get_model_weight(&self, model: &str) -> f64 {
+        self.pricing_provider.get_model_weight(model)
     }
 
     pub fn calculate_cost_for_tokens(

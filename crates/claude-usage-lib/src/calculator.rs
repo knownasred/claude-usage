@@ -20,6 +20,22 @@ impl Calculator {
         Some(BurnRate::new(tokens_per_minute, cost_per_hour))
     }
 
+    pub fn calculate_weighted_burn_rate(
+        &self,
+        block: &SessionBlock,
+        pricing_provider: &crate::pricing::PricingProvider,
+    ) -> Option<BurnRate> {
+        if block.is_empty() || block.duration_minutes() == 0.0 {
+            return None;
+        }
+
+        let weighted_tokens = block.calculate_weighted_tokens(pricing_provider);
+        let tokens_per_minute = weighted_tokens / block.duration_minutes();
+        let cost_per_hour = (block.cost_usd() / block.duration_minutes()) * 60.0;
+
+        Some(BurnRate::new(tokens_per_minute, cost_per_hour))
+    }
+
     pub fn project_block_usage(
         &self,
         block: &SessionBlock,
@@ -86,6 +102,46 @@ impl Calculator {
         }
 
         total_tokens / 60.0
+    }
+
+    pub fn calculate_weighted_hourly_burn_rate(
+        &self,
+        blocks: &[SessionBlock],
+        current_time: DateTime<Utc>,
+        pricing_provider: &crate::pricing::PricingProvider,
+    ) -> f64 {
+        let one_hour_ago = current_time - Duration::hours(1);
+        let mut total_weighted_tokens = 0.0;
+
+        for block in blocks {
+            if block.is_empty() {
+                continue;
+            }
+
+            let block_start = block.entries().first().unwrap().timestamp();
+            let block_end = block.entries().last().unwrap().timestamp();
+
+            if block_end < one_hour_ago || block_start > current_time {
+                continue;
+            }
+
+            let overlap_start = block_start.max(one_hour_ago);
+            let overlap_end = block_end.min(current_time);
+            let overlap_duration = (overlap_end - overlap_start).num_seconds() as f64 / 60.0;
+
+            if overlap_duration > 0.0 {
+                let session_weighted_tokens = block.calculate_weighted_tokens(pricing_provider);
+                let total_session_duration = block.duration_minutes();
+
+                if total_session_duration > 0.0 {
+                    let weighted_tokens_in_hour =
+                        session_weighted_tokens * (overlap_duration / total_session_duration);
+                    total_weighted_tokens += weighted_tokens_in_hour;
+                }
+            }
+        }
+
+        total_weighted_tokens / 60.0
     }
 
     pub fn calculate_weighted_tokens(&self, entry: &UsageEntry, model_weight: f64) -> f64 {
