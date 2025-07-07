@@ -36,6 +36,28 @@ impl Calculator {
         Some(BurnRate::new(tokens_per_minute, cost_per_hour))
     }
 
+    pub fn calculate_weighted_burn_rate_with_current_time(
+        &self,
+        block: &SessionBlock,
+        pricing_provider: &crate::pricing::PricingProvider,
+        current_time: DateTime<Utc>,
+    ) -> Option<BurnRate> {
+        if block.is_empty() {
+            return None;
+        }
+
+        let duration_minutes = block.duration_minutes_since_start(current_time);
+        if duration_minutes == 0.0 {
+            return None;
+        }
+
+        let weighted_tokens = block.calculate_weighted_tokens(pricing_provider);
+        let tokens_per_minute = weighted_tokens / duration_minutes;
+        let cost_per_hour = (block.cost_usd() / duration_minutes) * 60.0;
+
+        Some(BurnRate::new(tokens_per_minute, cost_per_hour))
+    }
+
     pub fn project_block_usage(
         &self,
         block: &SessionBlock,

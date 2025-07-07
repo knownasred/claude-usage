@@ -224,6 +224,12 @@ impl SessionBlock {
         self.duration_minutes
     }
 
+    pub fn duration_minutes_since_start(&self, current_time: DateTime<Utc>) -> f64 {
+        let duration_seconds = (current_time - self.start_time).num_seconds() as f64;
+        let duration_minutes = duration_seconds / 60.0;
+        duration_minutes.max(1.0) // Minimum 1 minute to avoid division by zero
+    }
+
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }

@@ -58,7 +58,11 @@ impl UsageMonitor {
     pub fn get_current_burn_rate(&self) -> Option<BurnRate> {
         self.session_blocks.last().and_then(|block| {
             self.calculator
-                .calculate_weighted_burn_rate(block, &self.pricing_provider)
+                .calculate_weighted_burn_rate_with_current_time(
+                    block,
+                    &self.pricing_provider,
+                    chrono::Utc::now(),
+                )
         })
     }
 
