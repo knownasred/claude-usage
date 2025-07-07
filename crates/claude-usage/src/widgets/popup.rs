@@ -45,10 +45,6 @@ impl PopupWidget {
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
                 ),
-                Span::styled(
-                    format!(" / {}", state.plan.max_tokens()),
-                    Style::default().fg(Color::Gray),
-                ),
             ]),
             Line::from(vec![
                 Span::styled("Block Cost: ", Style::default().fg(Color::White)),
