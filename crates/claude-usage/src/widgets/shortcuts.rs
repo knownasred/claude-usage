@@ -34,7 +34,14 @@ impl ShortcutsWidget {
                     .fg(Color::Yellow)
                     .add_modifier(Modifier::BOLD),
             ),
-            Span::styled(" for debug", Style::default().fg(Color::Gray)),
+            Span::styled(" for block breakdown, ", Style::default().fg(Color::Gray)),
+            Span::styled(
+                "s",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(" for session stats", Style::default().fg(Color::Gray)),
         ])];
 
         let shortcuts = Paragraph::new(shortcuts_text).alignment(Alignment::Center);

@@ -18,6 +18,12 @@ use tokio::time::interval;
 mod widgets;
 use widgets::*;
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum PopupType {
+    CurrentBlock,
+    LifetimeStats,
+}
+
 #[derive(Parser, Debug)]
 #[clap(author = "Red", version, about)]
 struct Args {
@@ -90,7 +96,7 @@ pub struct AppState {
     pub spinner_state: usize,
     pub data_loaded: bool,
     pub error_message: Option<String>,
-    pub show_debug_popup: bool,
+    pub active_popup: Option<PopupType>,
 }
 
 impl AppState {
@@ -103,7 +109,7 @@ impl AppState {
             spinner_state: 0,
             data_loaded: false,
             error_message: None,
-            show_debug_popup: false,
+            active_popup: None,
         }
     }
 
@@ -199,15 +205,50 @@ impl AppState {
     }
 
     pub fn get_usage_percentage(&self) -> f64 {
-        self.usage_monitor.get_plan_usage_percentage(self.plan)
+        self.usage_monitor.get_current_block_percentage(self.plan)
     }
 
     pub fn get_current_tokens(&self) -> u64 {
-        self.usage_monitor.get_total_weighted_tokens() as u64
+        self.usage_monitor.get_current_block_tokens() as u64
     }
 
     pub fn get_burn_rate(&self) -> Option<BurnRate> {
         self.usage_monitor.get_current_burn_rate()
+    }
+
+    // Lifetime stats for future popup
+    pub fn get_lifetime_tokens(&self) -> u64 {
+        self.usage_monitor.get_total_weighted_tokens() as u64
+    }
+
+    pub fn get_lifetime_percentage(&self, plan: ClaudePlan) -> f64 {
+        self.usage_monitor.get_plan_usage_percentage(plan)
+    }
+
+    pub fn get_total_cost(&self) -> f64 {
+        self.usage_monitor.get_total_cost()
+    }
+
+    // Current block methods for debug popup
+    pub fn get_current_block_cost(&self) -> f64 {
+        self.usage_monitor.get_current_block_cost()
+    }
+
+    pub fn get_current_block_duration(&self) -> f64 {
+        self.usage_monitor.get_current_block_duration()
+    }
+
+    // Additional lifetime stats for popup
+    pub fn get_session_blocks_count(&self) -> usize {
+        self.usage_monitor.session_count()
+    }
+
+    pub fn get_average_burn_rate(&self) -> Option<BurnRate> {
+        self.usage_monitor.get_average_burn_rate()
+    }
+
+    pub fn get_peak_burn_rate(&self) -> Option<BurnRate> {
+        self.usage_monitor.get_peak_burn_rate()
     }
 
     pub fn get_time_to_reset_formatted(&self) -> (String, f64) {
@@ -346,9 +387,15 @@ impl App {
             PredictionsWidget::render(frame, chunks[3], &state);
             ShortcutsWidget::render(frame, chunks[4], &state);
 
-            // Render popup if shown
-            if state.show_debug_popup {
-                PopupWidget::render(frame, area, &state);
+            // Render popup based on active popup type
+            match &state.active_popup {
+                Some(PopupType::CurrentBlock) => {
+                    PopupWidget::render(frame, area, &state);
+                }
+                Some(PopupType::LifetimeStats) => {
+                    LifetimePopupWidget::render(frame, area, &state);
+                }
+                None => {}
             }
         }
     }
@@ -366,15 +413,31 @@ impl App {
                         }
                     }
                     KeyCode::Char('d') => {
-                        // Toggle debug popup
+                        // Toggle current block breakdown popup
                         if let Ok(mut state) = self.state.lock() {
-                            state.show_debug_popup = !state.show_debug_popup;
+                            state.active_popup =
+                                if state.active_popup == Some(PopupType::CurrentBlock) {
+                                    None
+                                } else {
+                                    Some(PopupType::CurrentBlock)
+                                };
+                        }
+                    }
+                    KeyCode::Char('s') => {
+                        // Toggle lifetime stats popup
+                        if let Ok(mut state) = self.state.lock() {
+                            state.active_popup =
+                                if state.active_popup == Some(PopupType::LifetimeStats) {
+                                    None
+                                } else {
+                                    Some(PopupType::LifetimeStats)
+                                };
                         }
                     }
                     KeyCode::Esc => {
-                        // Close popup if open
+                        // Close any popup if open
                         if let Ok(mut state) = self.state.lock() {
-                            state.show_debug_popup = false;
+                            state.active_popup = None;
                         }
                     }
                     _ => {}

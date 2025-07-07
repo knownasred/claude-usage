@@ -194,6 +194,71 @@ impl UsageMonitor {
         (current_tokens / plan.max_tokens() as f64) * 100.0
     }
 
+    pub fn get_current_session_tokens(&self) -> f64 {
+        self.session_blocks.last().map_or(0.0, |block| {
+            block.calculate_weighted_tokens(&self.pricing_provider)
+        })
+    }
+
+    pub fn get_current_session_percentage(&self, plan: ClaudePlan) -> f64 {
+        let current_tokens = self.get_current_session_tokens();
+        (current_tokens / plan.max_tokens() as f64) * 100.0
+    }
+
+    pub fn get_current_session_info(&self) -> (usize, usize) {
+        let total_blocks = self.session_blocks.len();
+        let current_block = if total_blocks > 0 { total_blocks } else { 0 };
+        (current_block, total_blocks)
+    }
+
+    pub fn get_current_block(&self) -> Option<&SessionBlock> {
+        self.session_blocks.last()
+    }
+
+    pub fn get_current_block_tokens(&self) -> f64 {
+        self.session_blocks
+            .last()
+            .map(|block| block.calculate_weighted_tokens(&self.pricing_provider))
+            .unwrap_or(0.0)
+    }
+
+    pub fn get_current_block_percentage(&self, plan: ClaudePlan) -> f64 {
+        let current_tokens = self.get_current_block_tokens();
+        (current_tokens / plan.max_tokens() as f64) * 100.0
+    }
+
+    pub fn get_current_block_model_breakdown(
+        &self,
+    ) -> std::collections::HashMap<String, (u64, f64)> {
+        let mut breakdown = std::collections::HashMap::new();
+
+        if let Some(current_block) = self.session_blocks.last() {
+            for entry in current_block.entries() {
+                let stats = breakdown
+                    .entry(entry.model().to_string())
+                    .or_insert((0, 0.0));
+                stats.0 += entry.total_tokens();
+                stats.1 += entry.cost_usd();
+            }
+        }
+
+        breakdown
+    }
+
+    pub fn get_current_block_cost(&self) -> f64 {
+        self.session_blocks
+            .last()
+            .map(|block| block.cost_usd())
+            .unwrap_or(0.0)
+    }
+
+    pub fn get_current_block_duration(&self) -> f64 {
+        self.session_blocks
+            .last()
+            .map(|block| block.duration_minutes())
+            .unwrap_or(0.0)
+    }
+
     pub fn get_supported_models(&self) -> Vec<&String> {
         self.pricing_provider.supported_models()
     }

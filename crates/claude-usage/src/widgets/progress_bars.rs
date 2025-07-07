@@ -18,7 +18,7 @@ impl ProgressBarsWidget {
 
         let usage_percentage = state.get_usage_percentage();
         let token_gauge = Gauge::default()
-            .block(Block::bordered().title("Token Usage"))
+            .block(Block::bordered().title("Current Session Usage"))
             .gauge_style(if usage_percentage > 80.0 {
                 Style::default().fg(Color::Red)
             } else if usage_percentage > 60.0 {

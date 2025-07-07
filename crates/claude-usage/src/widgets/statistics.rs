@@ -14,13 +14,19 @@ impl StatisticsWidget {
     pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         let current_tokens = state.get_current_tokens();
         let burn_rate = state.get_burn_rate();
+        let (current_session, total_sessions) = state.usage_monitor.get_current_session_info();
 
         let mut stats_text = vec![
             Line::from(vec![
                 Span::styled("Data Status: ", Style::default().fg(Color::White)),
                 Span::styled(
                     if state.data_loaded {
-                        format!("Loaded ({} entries)", state.usage_monitor.entry_count())
+                        format!(
+                            "Loaded ({} entries, Session {} of {})",
+                            state.usage_monitor.entry_count(),
+                            current_session,
+                            total_sessions
+                        )
                     } else if state.is_loading {
                         "Loading...".to_string()
                     } else {
@@ -36,7 +42,7 @@ impl StatisticsWidget {
                 ),
             ]),
             Line::from(vec![
-                Span::styled("Tokens: ", Style::default().fg(Color::White)),
+                Span::styled("Current Block: ", Style::default().fg(Color::White)),
                 Span::styled(
                     format!("{}", current_tokens),
                     Style::default()
